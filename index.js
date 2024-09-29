@@ -15,30 +15,41 @@ const openai = new OpenAI({
 // Route to fetch stock data and send it to GPT for analysis
 app.get('/analyze-stocks', async (req, res) => {
     try {
-      // Fetch stock data from Vercel URL
-      const stockResponse = await axios.get('https://spreadsheetconnection.vercel.app/');
-      const stockData = stockResponse.data;
-  
-      // Log the data to ensure it's being fetched correctly
-      console.log('Fetched Stock Data:', stockData);
-  
-      // Prepare a prompt for GPT
-      const prompt = `Analyze the following stock data and suggest the best stock to invest in based on the entry price range and take profit values:\n\n${JSON.stringify(stockData)}`;
-  
-      // Send the stock data to GPT
-      const gptResponse = await openai.chat.completions.create({
-        model: 'gpt-4',
-        messages: [{ role: 'user', content: prompt }],
-      });
-  
-      // Return GPT's response
-      res.json({ gptAnalysis: gptResponse.choices[0].message.content });
-  
+        // Fetch stock data from Vercel URL
+        const stockResponse = await axios.get('https://spreadsheetconnection.vercel.app/');
+        const stockData = stockResponse.data;
+
+        // Log the fetched data
+        console.log('Fetched Stock Data:', stockData);
+
+        // Map stock data into a human-readable format
+        let structuredStockData = 'Here is the stock data:\n';
+        const headers = stockData[0]; // First row contains headers
+        for (let i = 1; i < stockData.length; i++) {
+            const stock = stockData[i];
+            structuredStockData += `Stock Name: ${stock[0]}, Entry Price Range: ${stock[1]}, Take Profit: ${stock[4]}, Trade Type: ${stock[5]}\n`;
+        }
+
+        console.log('Structured Stock Data:', structuredStockData);
+
+        // Prepare the GPT prompt
+        const prompt = `Analyze the following stock data and suggest the best stock to invest in based on the entry price range and take profit values:\n\n${structuredStockData}`;
+
+        // Send the prompt to GPT
+        const gptResponse = await openai.chat.completions.create({
+            model: 'gpt-4',
+            messages: [{ role: 'user', content: prompt }],
+        });
+
+        // Return GPT's analysis
+        res.json({ gptAnalysis: gptResponse.choices[0].message.content });
+
     } catch (error) {
-      console.error('Error fetching stock data or communicating with GPT:', error.message);
-      res.status(500).json({ error: 'Failed to fetch stock data or GPT analysis' });
+        console.error('Error fetching stock data or communicating with GPT:', error.message);
+        res.status(500).json({ error: 'Failed to fetch stock data or GPT analysis' });
     }
-  });
+});
+
 
 // Start the server
 app.listen(port, () => {
